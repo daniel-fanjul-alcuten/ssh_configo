@@ -1,5 +1,7 @@
 package sshconfigo
 
+import "fmt"
+
 // String is a string inside a line. It does not contain new line endings.
 type String struct {
 	// Pos is the position of the first character in the line.
@@ -103,4 +105,42 @@ type AST interface {
 	Section(string) Section
 	// Sections returns all Sections in the AST.
 	Sections() []Section
+}
+
+// ParseLine parses a single line.
+func ParseLine(s string) (l Line, err error) {
+	i, r := 0, []rune(s)
+	accept := func(f func(r rune) bool) (s String) {
+		if i < len(r) && f(r[i]) {
+			s.Pos = i
+			s.Text += string(r[i])
+			i++
+			for i < len(r) && f(r[i]) {
+				s.Text += string(r[i])
+				i++
+			}
+		}
+		return
+	}
+	l.Prefix = accept(func(r rune) bool {
+		return r == ' '
+	})
+	l.Keyword = accept(func(r rune) bool {
+		return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+	})
+	// TODO Parse l.Assignment
+	// TODO Parse l.Arguments
+	// TODO Parse l.Postfix
+	if i < len(r) && r[i] == '#' {
+		l.Comment = accept(func(r rune) bool {
+			return true
+		})
+	}
+	// TODO Parse l.NewLine
+	if i < len(r) {
+		err = fmt.Errorf("Unexpected character '%v' for remaining \"%v\"",
+			string(r[i]), string(r[i:]))
+		return
+	}
+	return
 }
